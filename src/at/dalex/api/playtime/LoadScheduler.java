@@ -11,27 +11,27 @@ import java.util.UUID;
 /*
  * Copyright 2018 David Kraus. All rights reserved.
  */
-public class SaveScheduler implements Runnable, IPlayTimes {
+public class LoadScheduler implements Runnable, IPlayTimes {
 
     private Configuration databaseConfig;
     private final String DATABASE_FILE = "players.db";
-    private File databaseFile;
 
     /**
-     * Creates a new SaveScheduler using the plugin's instance,
+     * Creates a new LoadScheduler using the plugin's instance,
      * the list of players and their played time.
      *
      * @param pluginInstance The plugin's instance
      */
-    SaveScheduler(Main pluginInstance) {
-
+    LoadScheduler(Main pluginInstance) {
         try {
             if (!pluginInstance.getDataFolder().exists()) {
                 pluginInstance.getDataFolder().mkdir();
             }
 
-            databaseFile = new File(pluginInstance.getDataFolder(), DATABASE_FILE);
-            databaseConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(databaseFile);
+            File databaseFile = new File(pluginInstance.getDataFolder(), DATABASE_FILE);
+            if (databaseFile.exists()) {
+                databaseConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(databaseFile);
+            }
         } catch (IOException e) {
             System.err.println(Main.prefix_noColor + "Error retrieving player database file!");
             e.printStackTrace();
@@ -40,16 +40,11 @@ public class SaveScheduler implements Runnable, IPlayTimes {
 
     @Override
     public void run() {
-
-        for (UUID playerId : playerPlayTimes.keySet()) {
-            databaseConfig.set("players." + playerId.toString() + ".timePlayed", playerPlayTimes.get(playerId));
-        }
-
-        try {
-            ConfigurationProvider.getProvider(YamlConfiguration.class).save(this.databaseConfig, this.databaseFile);
-        } catch (IOException e) {
-            System.err.println(Main.prefix_noColor + "Unable to save player database file!");
-            e.printStackTrace();
+        //Check if database has been loaded
+        if (databaseConfig != null) {
+            for (String playerId : databaseConfig.getSection("players").getKeys()) {
+                playerPlayTimes.put(UUID.fromString(playerId), databaseConfig.getInt("players." + playerId + ".timePlayed"));
+            }
         }
     }
 }

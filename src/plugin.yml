@@ -1,4 +1,4 @@
-name: DPlayTimeAPI
+name: DPlayTime
 version: 1.0
 author: David Kraus
 main: at.dalex.api.playtime.Main

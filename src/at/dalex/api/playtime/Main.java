@@ -9,20 +9,15 @@ import net.md_5.bungee.event.EventHandler;
 import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
 /*
  * Copyright 2018 David Kraus. All rights reserved.
  */
-public class Main extends Plugin implements Listener {
+public class Main extends Plugin implements Listener, IPlayTimes {
 
-    private Logger logger;
     private Main instance;
     public static String prefix_noColor = "[DPlayTimeAPI] ";
     private static String prefix = "§8[§bPlayTime§8]§7: ";
-
-    /* Player's playtime, in seconds */
-    private HashMap<UUID, Integer> playerPlayTimes = new HashMap<>();
 
     /*
      * Login and disconnect times, stored in milliseconds
@@ -33,15 +28,18 @@ public class Main extends Plugin implements Listener {
 
     @Override
     public void onEnable() {
-        this.logger = getLogger();
         this.instance = this;
+
+        new PluginMessager(this);
 
         getProxy().getPluginManager().registerListener(this, this);
 
+        //Load player database
+        getProxy().getScheduler().schedule(this, this::runLoadThread, 0, TimeUnit.SECONDS);
         //Start save job
         getProxy().getScheduler().schedule(this, this::runSaveThread, 30, Long.MAX_VALUE, TimeUnit.MINUTES);
 
-        getProxy().getConsole().sendMessage(prefix + "§aAPI geladen.");
+        getProxy().getConsole().sendMessage(prefix + "§aPlugin geladen.");
     }
 
     @Override
@@ -50,7 +48,7 @@ public class Main extends Plugin implements Listener {
         getProxy().getConsole().sendMessage(prefix + "§7Speichere Spieler ...");
         runSaveThread();
         getProxy().getConsole().sendMessage(prefix + "§8Fertig.");
-        getProxy().getConsole().sendMessage(prefix + "§4API deaktiviert.");
+        getProxy().getConsole().sendMessage(prefix + "§4Plugin deaktiviert.");
     }
 
     /**
@@ -60,8 +58,19 @@ public class Main extends Plugin implements Listener {
      * This allows us to run the job asynchronously.
      */
     private void runSaveThread() {
-        Thread saveThread = new Thread(new SaveScheduler(instance, playerPlayTimes));
-        saveThread.run();
+        Thread saveThread = new Thread(new SaveScheduler(instance));
+        saveThread.start();
+    }
+
+    /**
+     * Loads all players and their played time
+     * from a configuration file using the LoadScheduler.
+     *
+     * This allows us to run the job asynchronously.
+     */
+    private void runLoadThread() {
+        Thread loadThread = new Thread(new LoadScheduler(instance));
+        loadThread.start();
     }
 
     /**
@@ -73,7 +82,6 @@ public class Main extends Plugin implements Listener {
      * @param playerId The player's {@link UUID}
      */
     public int calculateSessionPlayTime(UUID playerId) {
-
         //Check if the specified player has logged in in this session
         if (playerLoginTimes.get(playerId) != null) {
             long postLoginTime = playerLoginTimes.get(playerId);
@@ -128,8 +136,15 @@ public class Main extends Plugin implements Listener {
      */
     public int getTimePlayed(UUID playerId) {
         Integer timePlayed = playerPlayTimes.get(playerId);
+
         if (timePlayed == null)
             timePlayed = calculateSessionPlayTime(playerId);
+
+        //If the player hasn't disconnected yet
+        //add the session time to the player's
+        //total playtime
+        else if (playerDisconnectTimes.get(playerId) == null)
+            timePlayed += calculateSessionPlayTime(playerId);
 
         return timePlayed;
     }
@@ -150,5 +165,6 @@ public class Main extends Plugin implements Listener {
         UUID playerId = e.getPlayer().getUniqueId();
         playerDisconnectTimes.put(playerId, System.currentTimeMillis());
         updateTotalPlayTime(playerId);
+        playerLoginTimes.remove(playerId);
     }
 }
