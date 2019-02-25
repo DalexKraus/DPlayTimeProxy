@@ -4,8 +4,7 @@ It is mainly used for tracking down the time a player is online.
 
 The collected data can then be accessed via the DPlayTimeAPI.
 
-THIS PROXY IS USING THE FOLLOWING MESSAGING-CHANNELS
-(Make sure you don't send on any of those!)
+THIS PROXY USES THE FOLLOWING MESSAGING-CHANNELS
 ---
 
 * pt_request_channel
